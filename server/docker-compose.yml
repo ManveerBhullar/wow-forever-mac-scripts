@@ -1,0 +1,52 @@
+services:
+  tc-database:
+    image: mariadb:11
+    container_name: tc-database
+    environment:
+      MARIADB_ROOT_PASSWORD: CHANGE_ME_DB_PASSWORD
+    command: --disable-log-bin
+    volumes:
+      - tc-mysql-data:/var/lib/mysql
+    ports:
+      - "13306:3306"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mariadb", "-uroot", "-pCHANGE_ME_DB_PASSWORD", "-e", "SHOW DATABASES;"]
+      interval: 5s
+      timeout: 10s
+      retries: 40
+
+  tc-worldserver:
+    build: .
+    container_name: tc-worldserver
+    command: ["/trinity/bin/worldserver", "-c", "/trinity/env/worldserver.conf"]
+    stdin_open: true
+    tty: true
+    depends_on:
+      tc-database:
+        condition: service_healthy
+    volumes:
+      - ./env/dist:/trinity/env
+      - tc-server-data:/trinity/data
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+
+  tc-bnetserver:
+    build: .
+    container_name: tc-bnetserver
+    command: /trinity/bin/bnetserver -c /trinity/env/bnetserver.conf
+    depends_on:
+      tc-database:
+        condition: service_healthy
+    volumes:
+      - ./env/dist:/trinity/env
+      - tc-server-data:/trinity/data
+    ports:
+      - "1119:1119"
+      - "443:443"
+    restart: unless-stopped
+
+volumes:
+  tc-mysql-data:
+  tc-server-data:
